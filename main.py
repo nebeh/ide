@@ -1,37 +1,50 @@
-"""
-Простой интерфейс для AI-агента.
-"""
-
-from agent import run_agent
+# main.py
+from graph import app
+from langchain_core.messages import HumanMessage
 
 
-def main():
-    print("\n🤖 AI-агент для написания кода")
-    print("Введите 'exit' для выхода\n")
+def run_multi_agent(task: str):
+    print(f"\n🚀 Запуск мультиагентной системы для задачи: '{task}'\n")
+    print("=" * 60)
 
-    while True:
-        try:
-            user_input = input("\nВы: ").strip()
+    initial_state = {
+        "messages": [HumanMessage(content=task)],
+        "task": task,
+        "current_code": "",
+        "test_results": "",
+        "documentation": "",
+        "status": "planning",
+        "iteration": 0,
+    }
 
-            if user_input.lower() == "exit":
-                print("До свидания! 👋")
-                break
+    # Запускаем граф в режиме стриминга, чтобы видеть работу каждого агента
+    for event in app.stream(initial_state, stream_mode="values"):
+        current_status = event.get("status", "unknown")
+        last_message = event["messages"][-1]
 
-            if not user_input:
-                continue
+        text = getattr(last_message, "content", "") or ""
+        if not isinstance(text, str):
+            text = str(text)
+        print(f"\n🔄 Текущий статус: [{current_status.upper()}]")
+        print(f"🤖 Агент: {text[:300]}...")
 
-            # Запускаем агента
-            response = run_agent(user_input)
+        # Если агент вызвал инструменты, покажем это
+        if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+            for tc in last_message.tool_calls:
+                print(f"   🔧 Вызов инструмента: {tc['name']}({tc['args']})")
 
-            print(f"\n{'=' * 60}")
-        # print(f"✅ Агент: {response}")
-
-        except KeyboardInterrupt:
-            print("\n\nПрервано пользователем")
-            break
-        except Exception as e:
-            print(f"\n❌ Ошибка: {e}")
+    print("\n" + "=" * 60)
+    print(
+        "✅ РАБОТА ЗАВЕРШЕНА. Файлы лежат в папке solution: solution.py, test_solution.py, solution.md, plan.txt."
+    )
 
 
 if __name__ == "__main__":
-    main()
+    user_task = """
+    Напиши функцию для расчета чисел Фибоначчи до N-го элемента.
+    Требования:
+    - Используй валидацию входных данных (проверка на положительное целое число)
+    - Обработай краевые случаи
+    - Добавь подробные комментарии
+    """
+    run_multi_agent(user_task)
