@@ -2,24 +2,38 @@
 
 Модель `qwen2.5-coder:7b` через Ollama решает задачу в четыре шага. Перед этим примеры из папки `codebase` лежат в Qdrant. Архитектор и кодер ищут там похожий код и опираются на него.
 
-```text
-codebase/*.py
-      │
-      ▼
- indexer.py ──эмбеддинги nomic-embed-text──► Qdrant (python_codebase)
-                                                  │
-                                                  ▼
- пользователь ── main.py ──► архитектор ──search_codebase──► plan.txt
-                                  │
-                                  ▼
-                               кодер ──search_codebase──► solution.py
-                                  ▲
-                                  │  если тестов нет или они не прошли
-                                  │
-                             тестировщик ──► test_solution.py
-                                  │
-                                  ▼
-                              писатель ──► solution.md
+```mermaid
+flowchart TD
+  codebase[codebase]
+  indexer[indexer.py]
+  ollamaEmbed[Ollama nomic-embed-text]
+  qdrant[Qdrant python_codebase]
+  user[пользователь]
+  mainPy[main.py]
+  architect[архитектор]
+  coder[кодер]
+  tester[тестировщик]
+  writer[писатель]
+  planFile[solution/plan.txt]
+  solutionFile[solution/solution.py]
+  testFile[solution/test_solution.py]
+  docFile[solution/solution.md]
+
+  codebase --> indexer
+  indexer --> ollamaEmbed
+  ollamaEmbed --> qdrant
+  user --> mainPy
+  mainPy --> architect
+  qdrant -->|search_codebase| architect
+  architect --> planFile
+  architect --> coder
+  qdrant -->|search_codebase| coder
+  coder --> solutionFile
+  coder --> tester
+  tester --> testFile
+  tester -->|тесты не готовы| coder
+  tester --> writer
+  writer --> docFile
 ```
 
 Все четыре файла появляются в папке `solution`.
