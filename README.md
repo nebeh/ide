@@ -1,49 +1,44 @@
-# Простой AI-агент для кода
+# Мультиагент
 
-Агент на LangGraph принимает задачу на естественном языке, пишет Python-код и проверяет его через инструмент `execute_python`. Модель — Ollama `qwen2.5-coder:7b`.
-
-Запуск:
-
-```bash
-python main.py
-```
-
-`exit` завершает диалог.
-
-## Схема
+Модель `qwen2.5-coder:7b` через Ollama решает задачу в четыре шага. Поиска по чужому коду здесь нет: каждая роль пишет свою часть в папку `solution`.
 
 ```mermaid
 flowchart TD
-    user["Пользователь: main.py"] --> run["run_agent"]
-    run --> agent["agent_node"]
-
-    agent --> sys{"В истории есть SystemMessage?"}
-    sys -->|нет| add["Добавить SYSTEM_PROMPT"]
-    sys -->|да| llm
-    add --> llm["ChatOllama + bind_tools"]
-
-    llm --> native{"Есть tool_calls?"}
-    native -->|нет| parse["Достать JSON вызова из текста и раскодировать \\n"]
-    native -->|да| route
-    parse --> route{"should_continue"}
-
-    route -->|"итераций >= 5"| stop["END"]
-    route -->|"нет вызова инструмента"| stop
-    route -->|есть вызов| tools["tool_node"]
-
-    tools --> exec["execute_python: временный .py, subprocess, stdout / stderr / код возврата"]
-    exec --> back["ToolMessage в историю"]
-    back --> agent
-
-    stop --> reply["Финальный ответ в консоль"]
+  user[пользователь] --> mainPy[main.py]
+  mainPy --> architect[архитектор]
+  architect --> planFile[solution/plan.txt]
+  architect --> coder[кодер]
+  coder --> solutionFile[solution/solution.py]
+  coder --> tester[тестировщик]
+  tester --> testFile[solution/test_solution.py]
+  tester -->|тесты не готовы| coder
+  tester --> writer[писатель]
+  writer --> docFile[solution/solution.md]
 ```
 
-## Как устроен цикл
+- Архитектор пишет план в `solution/plan.txt` и не пишет код.
+- Кодер пишет `solution/solution.py`.
+- Тестировщик пишет `solution/test_solution.py` и запускает его. Если тестов нет, граф возвращается к кодеру.
+- Писатель пишет `solution/solution.md`. Этот `README.md` он не трогает.
 
-1. `main.py` читает строку и передаёт её в `run_agent`.
-2. `agent_node` вызывает модель. Если в начале истории нет системного сообщения, подставляется `SYSTEM_PROMPT`.
-3. Если модель не заполнила `tool_calls`, а написала JSON `{"name": "execute_python", "arguments": {...}}` в тексте, вызов извлекается из ответа. Последовательности `\n` в коде превращаются в переводы строк.
-4. `should_continue` отправляет граф в `tool_node`, если есть вызов инструмента, и в `END`, если ответ текстовый или число итераций достигло 5.
-5. `execute_python` пишет код во временный файл, запускает его и возвращает stdout, stderr и код возврата. Результат кладётся в историю как `ToolMessage`, после чего снова вызывается `agent_node`.
+Инструменты: `read_file`, `write_file`, `execute_python`. Файлы сохраняются только внутри `solution/`.
 
-Состояние графа — список `messages`. Память диалога между запусками в одном процессе держит `MemorySaver` с `thread_id`.
+## Запуск
+
+Модель задана в `agents.py`. Отдельно указывать её не нужно. Ollama должна быть запущена, `qwen2.5-coder:7b` видна в `ollama list`.
+
+```bash
+cd learn_agent/ide
+git checkout multi
+python main.py
+```
+
+Текст задачи — переменная `user_task` внизу `main.py`. Сейчас это числа Фибоначчи с проверкой, что аргумент — положительное целое.
+
+После завершения:
+
+```bash
+python solution/test_solution.py
+```
+
+В `solution/` должны быть `plan.txt`, `solution.py`, `test_solution.py` и `solution.md`.
