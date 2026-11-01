@@ -25,8 +25,8 @@ def run_multi_agent(task: str):
         text = getattr(last_message, "content", "") or ""
         if not isinstance(text, str):
             text = str(text)
-        print(f"\n🔄 Текущий статус: [{current_status.upper()}]")
-        print(f"🤖 Агент: {text[:300]}...")
+        print(f"\n Текущий статус: [{current_status.upper()}]")
+        print(f" Агент: {text[:300]}...")
 
         # Если агент вызвал инструменты, покажем это
         if hasattr(last_message, "tool_calls") and last_message.tool_calls:
@@ -35,7 +35,7 @@ def run_multi_agent(task: str):
 
     print("\n" + "=" * 60)
     print(
-        "✅ РАБОТА ЗАВЕРШЕНА. Файлы лежат в папке solution: solution.py, test_solution.py, solution.md, plan.txt."
+        " РАБОТА ЗАВЕРШЕНА. Файлы лежат в папке solution: solution.py, test_solution.py, solution.md, plan.txt."
     )
 
 
